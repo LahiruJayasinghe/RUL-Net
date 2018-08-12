@@ -43,6 +43,7 @@ After standard normalization of data in time domain
 
 The distribution of FD001 and FD003 has similarities as well as the FD002 and FD004 datasets.
 ## Data labeling
-
-
+## Training data augmentation
+## System Model
+### Feature Extractors
 ## Dependencies 

@@ -51,6 +51,6 @@ If we concatanate all the training labels and testing labels its looks like this
 It’s clear that the training labels always goes to zero RUL but testing labels need not to go zero RUL. Therefore, model must see something like testing data to get a good perdition. We implemented a data augmentation technique to make the training data looks like testing data, which increases the accuracy. (more details will be publishing in our coming paper).
 ![Screenshot](screenshots/data_augmentation.PNG)
 ## System Model
-
+![Screenshot](screenshots/system_model.PNG)
 ### Feature Extractors
 ## Dependencies 

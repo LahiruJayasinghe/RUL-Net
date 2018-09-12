@@ -1,73 +1,48 @@
 import os
-import pickle
 import numpy as np
 import tensorflow as tf
-
-DEBUG = False
-
-
-def cache(cache_path, obj=None):
-    if os.path.exists(cache_path):
-        with open(cache_path, mode='rb') as file:
-            obj = pickle.load(file)
-        print("- Data loaded from cache-file: " + cache_path)
-    elif obj is not None:
-        with open(cache_path, mode='wb') as file:
-            pickle.dump(obj, file)
-        print("- Data saved to cache-file: " + cache_path)
-    return obj
+import tensorflow.contrib.slim as slim
+from data_processing import MAXLIFE
 
 
-def movingavg(data, window):  # [n_samples, n_features]
-    data_new = np.transpose(data)
-    if data_new.ndim > 1:
-        tmp = []
-        for i in range(data_new.shape[0]):
-            ma = movingavg(np.squeeze(data_new[i]), window)
-            tmp.append(ma)
-        smas = np.array(tmp)
-    else:
-        w = np.repeat(1.0, window) / window
-        smas = np.convolve(data_new, w, 'valid')
-    smas = np.transpose(smas)
-    return smas  # [n_samples, n_features]
+def dense_layer(x, size,activation_fn, batch_norm = False,phase=False, drop_out=False, keep_prob=None, scope="fc_layer"):
+    """
+    Helper function to create a fully connected layer with or without batch normalization or dropout regularization
 
+    :param x: previous layer
+    :param size: fully connected layer size
+    :param activation_fn: activation function
+    :param batch_norm: bool to set batch normalization
+    :param phase: if batch normalization is set, then phase variable is to mention the 'training' and 'testing' phases
+    :param drop_out: bool to set drop-out regularization
+    :param keep_prob: if drop-out is set, then to mention the keep probability of dropout
+    :param scope: variable scope name
+    :return: fully connected layer
+    """
+    with tf.variable_scope(scope):
+        if batch_norm:
+            dence_layer = tf.contrib.layers.fully_connected(x, size, activation_fn=None)
+            dence_layer_bn = BatchNorm(name="batch_norm_" + scope)(dence_layer, train=phase)
+            return_layer = activation_fn(dence_layer_bn)
+        else:
+            return_layer = tf.layers.dense(x, size,
+                                           kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                           activation=activation_fn)
+        if drop_out:
+            return_layer = tf.nn.dropout(return_layer, keep_prob)
 
-def get_weights(shape, scope_name):
-    with tf.variable_scope(scope_name):
-        w = tf.get_variable(scope_name + '_w', shape, initializer=tf.contrib.layers.xavier_initializer(),
-                            dtype=tf.float32)
-        b = tf.get_variable(scope_name + '_b', [shape[-1]], initializer=tf.zeros_initializer(), dtype=tf.float32)
-        return w, b
-
-
-def apply_conv(x, kernel_height, kernel_width, num_channels, depth, scope_name):
-    weights, biases = get_weights([kernel_height, kernel_width, num_channels, depth], scope_name)
-    return tf.nn.relu(tf.add(tf.nn.conv2d(x, weights, [1, 1, 1, 1], padding="VALID"), biases))
-
-
-def apply_max_pool(x, kernel_height, kernel_width, stride_size):
-    return tf.nn.max_pool(x, ksize=[1, kernel_height, kernel_width, 1], strides=[1, 1, stride_size, 1], padding="VALID")
-
-
-def apply_conv_new(x, kernel_height, kernel_width, num_channels, depth, scope_name):
-    W, b = get_weights([kernel_height, kernel_width, num_channels, depth], scope_name)
-    x = tf.nn.conv2d(x, W, strides=[1, 1, 1, 1], padding='SAME')
-    x = tf.nn.bias_add(x, b)
-    return tf.nn.relu(x)
-
-
-def apply_max_pool_new(x, kernel_height, kernel_width, stride_size):
-    return tf.nn.max_pool(x, ksize=[1, kernel_height, kernel_width, 1], strides=[1, stride_size, stride_size, 1],
-                          padding='SAME')
-
-
-def apply_avg_pool_new(x, kernel_height, kernel_width, stride_size):
-    return tf.nn.avg_pool(x, ksize=[1, kernel_height, kernel_width, 1], strides=[1, stride_size, stride_size, 1],
-                          padding='SAME')
+        return return_layer
 
 
 def get_RNNCell(cell_types, keep_prob, state_size, build_with_dropout=True):
+    """
+    Helper function to get a different types of RNN cells with or without dropout wrapper
+    :param cell_types: cell_type can be 'GRU' or 'LSTM' or 'LSTM_LN' or 'GLSTMCell' or 'LSTM_BF' or 'None'
+    :param keep_prob: dropout keeping probability
+    :param state_size: number of cells in a layer
+    :param build_with_dropout: to enable the dropout for rnn layers
+    :return:
+    """
     cells = []
     for cell_type in cell_types:
         if cell_type == 'GRU':
@@ -97,92 +72,29 @@ def get_RNNCell(cell_types, keep_prob, state_size, build_with_dropout=True):
     return cell
 
 
-def get_inception1D(X):
-
-    conv1_11 = tf.layers.conv1d(inputs=X, filters=36, kernel_size=1, strides=1,
-                                padding='same', activation=tf.nn.relu)
-    conv1_21 = tf.layers.conv1d(inputs=X, filters=18, kernel_size=1, strides=1,
-                                padding='same', activation=tf.nn.relu)
-    conv1_31 = tf.layers.conv1d(inputs=X, filters=18, kernel_size=1, strides=1,
-                                padding='same', activation=tf.nn.relu)
-    avg_pool_41 = tf.layers.average_pooling1d(inputs=X, pool_size=2, strides=1, padding='same')
-    conv2_22 = tf.layers.conv1d(inputs=conv1_21, filters=36, kernel_size=2, strides=1,
-                                padding='same', activation=tf.nn.relu)
-    conv4_32 = tf.layers.conv1d(inputs=conv1_31, filters=36, kernel_size=4, strides=1,
-                                padding='same', activation=tf.nn.relu)
-    conv1_42 = tf.layers.conv1d(inputs=avg_pool_41, filters=36, kernel_size=1, strides=1,
-                                padding='same', activation=tf.nn.relu)
-
-    inception_out = tf.concat([conv1_11, conv2_22, conv4_32, conv1_42], axis=2)
-    return inception_out
-
-
-def windows(nrows, size):
-    start, step = 0, 2
-    while start < nrows:
-        # print(start,nrows)
-        yield start, start + size
-        start += step
-
-
-def segment_signal(features, labels, window_size=15):
-    segments = np.empty((0, window_size))
-    segment_labels = np.empty((0))
-    nrows = len(features)
-    for (start, end) in windows(nrows, window_size):
-        if (len(features.iloc[start:end]) == window_size):
-            segment = features[start:end].T  # Transpose to get segment of size 24 x 15
-            label = labels[(end - 1)]
-            segments = np.vstack([segments, segment])
-            segment_labels = np.append(segment_labels, label)
-    segments = segments.reshape(-1, 24, window_size, 1)  # number of features  = 24
-    segment_labels = segment_labels.reshape(-1, 1)
-    return segments, segment_labels
-
-
-def batch_generator_CNN(x_train, y_train, batch_size, sequence_length, online=False, shift=1):
+class BatchNorm(object):
     """
-    Generator function for creating random batches of training-data for many to one models
+    usage : dence_layer_bn = BatchNorm(name="batch_norm_" + scope)(previous_layer, train=is_train)
     """
-    num_x_sensors = x_train.shape[1]
-    num_train = x_train.shape[0]
-    idx = 0
+    def __init__(self, epsilon=1e-5, momentum=0.999, name="batch_norm"):
+        with tf.variable_scope(name):
+            self.epsilon = epsilon
+            self.momentum = momentum
+            self.name = name
 
-    # Infinite loop.
-    while True:
-        # Allocate a new array for the batch of input-signals.
-        x_shape = (batch_size, num_x_sensors, sequence_length)
-        x_batch = np.zeros(shape=x_shape, dtype=np.float32)
-        # print(idx)
-        # Allocate a new array for the batch of output-signals.
-        y_shape = (batch_size)
-        y_batch = np.zeros(shape=y_shape, dtype=np.float32)
-
-        if online == False:
-            idx = np.random.randint(num_train - sequence_length - batch_size)
-
-        # Fill the batch with random sequences of data.
-        for i in range(batch_size):
-            # Get a random start-index.
-            # This points somewhere into the training-data.
-            if online == True and (idx >= num_train or (idx + sequence_length) > num_train):
-                # print("batach_size:",batch_size,"last idx:",idx,"now idx AT THE BEGINING")
-                idx = 0
-
-            # Copy the sequences of data starting at this index.
-            x_batch[i] = x_train[idx:idx + sequence_length].T
-            # y_batch[i] = y_train[idx:idx + sequence_length]
-            y_batch[i] = y_train[idx + sequence_length - 1]
-
-            idx = idx + shift  # check if its nee to be idx=idx+1
-            # print(idx)
-
-        yield (x_batch[:, ..., np.newaxis], y_batch[:, ..., np.newaxis])
+    def __call__(self, x, train=True):
+        return tf.contrib.layers.batch_norm(x,
+                                            decay=self.momentum,
+                                            updates_collections=None,
+                                            epsilon=self.epsilon,
+                                            scale=True,
+                                            is_training=train,
+                                            scope=self.name)
 
 
 def batch_generator(x_train, y_train, batch_size, sequence_length, online=False, online_shift=1):
     """
-    Generator function for creating random batches of training-data for meny to meny models
+    Generator function for creating random batches of training-data for many to many models
     """
     num_x_sensors = x_train.shape[1]
     num_train = x_train.shape[0]
@@ -221,7 +133,9 @@ def batch_generator(x_train, y_train, batch_size, sequence_length, online=False,
 def trjectory_generator(x_train, y_train, test_engine_id, sequence_length, graph_batch_size, lower_bound):
     """
     Extract training trjectories one by one
+    test_engine_id = [11111111...,22222222....,...]
     """
+    DEBUG = False
     num_x_sensors = x_train.shape[1]
     idx = 0
     engine_ids = test_engine_id.unique()
@@ -280,6 +194,61 @@ def trjectory_generator(x_train, y_train, test_engine_id, sequence_length, graph
             yield (x_batch, y_batch)
 
 
+def plot_data(data, label=""):
+    """
+    Plot every plot on top of each other
+    """
+    from matplotlib import pyplot as plt
+    if type(data) is list:
+        for x in data:
+            plt.plot(x, label=label)
+    else:
+        plt.plot(data, label=label)
+    plt.show()
+
+
+def model_summary(learning_rate,batch_size,lstm_layers,lstm_layer_size,fc_layer_size,sequence_length,n_channels,path_checkpoint,spacial_note=''):
+    path_checkpoint=path_checkpoint + ".txt"
+    if not os.path.exists(os.path.dirname(path_checkpoint)):
+        os.makedirs(os.path.dirname(path_checkpoint))
+
+    with open(path_checkpoint, "w") as text_file:
+        variables = tf.trainable_variables()
+
+        print('---------', file=text_file)
+        print(path_checkpoint, file=text_file)
+        print(spacial_note, file=text_file)
+        print('---------', '\n', file=text_file)
+
+        print('---------', file=text_file)
+        print('MAXLIFE: ', MAXLIFE,'\n',  file=text_file)
+        print('learning_rate: ', learning_rate, file=text_file)
+        print('batch_size: ', batch_size, file=text_file)
+        print('lstm_layers: ', lstm_layers, file=text_file)
+        print('lstm_layer_size: ', lstm_layer_size, file=text_file)
+        print('fc_layer_size: ', fc_layer_size, '\n', file=text_file)
+        print('sequence_length: ', sequence_length, file=text_file)
+        print('n_channels: ', n_channels, file=text_file)
+        print('---------', '\n', file=text_file)
+
+        print('---------', file=text_file)
+        print('Variables: name (type shape) [size]', file=text_file)
+        print('---------', '\n', file=text_file)
+        total_size = 0
+        total_bytes = 0
+        for var in variables:
+            # if var.num_elements() is None or [] assume size 0.
+            var_size = var.get_shape().num_elements() or 0
+            var_bytes = var_size * var.dtype.size
+            total_size += var_size
+            total_bytes += var_bytes
+            print(var.name, slim.model_analyzer.tensor_description(var), '[%d, bytes: %d]' %
+                      (var_size, var_bytes), file=text_file)
+
+        print('\nTotal size of variables: %d' % total_size, file=text_file)
+        print('Total bytes of variables: %d' % total_bytes, file=text_file)
+
+
 def scoring_func(error_arr):
     '''
 
@@ -302,3 +271,34 @@ def scoring_func(error_arr):
         score = math.exp(error / 10) - 1 + score
         # print(math.exp(error / 10),score, error)
     return score
+
+
+def conv_layer(X,filters,kernel_size,strides,padding,batch_norm,is_train,scope):
+    """
+    1D convolutional layer with or without dropout or batch normalization
+
+    :param batch_norm:  bool, enable batch normalization
+    :param is_train: bool, mention if current phase is training phase
+    :param scope: variable scope
+    :return: 1D-convolutional layer
+    """
+    with tf.variable_scope(scope):
+        if batch_norm:
+            conv1 = tf.layers.conv1d(inputs=X, filters=filters, kernel_size=kernel_size, strides=strides,
+                                     padding=padding, kernel_initializer=tf.contrib.layers.xavier_initializer())
+            return tf.nn.relu(BatchNorm(name="norm_"+scope)(conv1, train=is_train))
+        else:
+            return tf.layers.conv1d(inputs=X, filters=filters, kernel_size=kernel_size, strides=strides,
+                                     padding=padding, kernel_initializer=tf.contrib.layers.xavier_initializer(),
+                                     activation=tf.nn.relu)
+
+
+def get_predicted_expected_RUL(__y, __y_pred, lower_bound=-1):
+    trj_end = np.argmax(__y == lower_bound) - 1
+    trj_pred = __y_pred[:trj_end]
+    trj_pred[trj_pred < 0] = 0
+    # if trj_pred[-1] < 0: print(trj_pred[-1])
+    RUL_predict = round(trj_pred[-1], 0)
+    RUL_expected = round(__y[trj_end], 0)
+
+    return RUL_predict, RUL_expected

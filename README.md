@@ -3,7 +3,6 @@ Deep learning approach for estimation of Remaining Useful Life (RUL) of an engin
 This repo is dedicated to new architectures for estimating RUL using CMAPSS dataset and PHM08 prognostic challenge dataset
 The datasets are included in this repo or can be donwloaded from: https://ti.arc.nasa.gov/tech/dash/groups/pcoe/prognostic-data-repository/#turbofan 
 
-(This is an undergoing project, more new things are yet to come)
 
 ## Dataset discription
 The main and largest dataset is the CMAPSS dataset. It contain four subdatasets called FD001, FD002, FD003, and FD004

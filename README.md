@@ -46,11 +46,17 @@ The distribution of FD001 and FD003 has similarities as well as the FD002 and FD
 Machine health is inversely proportional to the engine cycles. When number of engine cycles are increasing, then the machine health should decrease. It can be model as a linear function but here we use a piece-wise linear function. We assume that first few cycles have the maximum health of the machine and then it starts to decrease linearly.   
 ![Screenshot](screenshots/piece-wise.gif)
 ## Training data augmentation
-If we concatanate all the training labels and testing labels its looks like this 
-![Screenshot](screenshots/training_testing_labels.PNG)
+
+![Screenshot](screenshots/data_augmentation.PNG)
+
+If we concatanate all the training labels and testing labels its looks like this (a) and (c)
 It’s clear that the training labels always goes to zero RUL but testing labels need not to go zero RUL. Therefore, model must see something like testing data to get a good perdition. We implemented a data augmentation technique to make the training data looks like testing data, which increases the accuracy. (more details will be publishing in our coming paper).
 ![Screenshot](screenshots/data_augmentation.PNG)
 ## System Model
 ![Screenshot](screenshots/system_model.PNG)
-### Feature Extractors
 ## Dependencies 
+tensorflow 1.8
+numpy 1.14.4
+pandas 0.20.3
+scikit-learn 0.19.1
+

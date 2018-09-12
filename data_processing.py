@@ -4,11 +4,12 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 import random
 
-MAXLIFE = 120  # 0.35
+MAXLIFE = 120
 SCALE = 1
 RESCALE = 1
 true_rul = []
 test_engine_id = 0
+training_engine_id = 0
 
 
 def kink_RUL(cycle_list, max_cycle):
@@ -133,8 +134,14 @@ def get_CMAPSSData(save=False, save_training_data=True, save_testing_data=True, 
             print(data_file)
 
         train = pd.concat(frames)
+        global training_engine_id
+        training_engine_id = train['engine_id']
         train = train.drop('engine_id', 1)
         train = train.drop('cycle', 1)
+        # if files[0] == 1 or files[0] == 3:
+        #     train = train.drop('setting3', 1)
+        #     train = train.drop('s18', 1)
+        #     train = train.drop('s19', 1)
 
         train_values = train.values * SCALE
         np.save('normalized_train_data.npy', train_values)
@@ -193,6 +200,10 @@ def get_CMAPSSData(save=False, save_training_data=True, save_testing_data=True, 
         test = pd.concat(frames)
         test = test.drop('engine_id', 1)
         test = test.drop('cycle', 1)
+        # if files[0] == 1 or files[0] == 3:
+        #     test = test.drop('setting3', 1)
+        #     test = test.drop('s18', 1)
+        #     test = test.drop('s19', 1)
 
         test_values = test.values * SCALE
         np.save('normalized_test_data.npy', test_values)
@@ -212,8 +223,8 @@ def get_PHM08Data(save=False):
     """
 
     if save == False:
-        return np.load("phm_training_data.npy"), np.load("phm_testing_data.npy"), np.load(
-            "phm_original_testing_data.npy")
+        return np.load("./PHM08/processed_data/phm_training_data.npy"), np.load("./PHM08/processed_data/phm_testing_data.npy"), np.load(
+            "./PHM08/processed_data/phm_original_testing_data.npy")
 
     column_name = ['engine_id', 'cycle', 'setting1', 'setting2', 'setting3', 's1', 's2', 's3',
                    's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13', 's14',
@@ -235,13 +246,15 @@ def get_PHM08Data(save=False):
     std = phm_testing_data.iloc[:, 2:len(list(phm_testing_data))].std()
     phm_testing_data.iloc[:, 2:len(list(phm_testing_data))] = (phm_testing_data.iloc[:, 2:len(
         list(phm_testing_data))] - mean) / std
-    phm_testing_data['RUL'] = compute_rul_of_one_file(phm_testing_data)
+    phm_testing_data['RUL'] = 0
+    #phm_testing_data['RUL'] = compute_rul_of_one_file(phm_testing_data)
 
     train_engine_id = phm_training_data['engine_id']
     # print(phm_training_engine_id[phm_training_engine_id==1].index)
     phm_training_data = phm_training_data.drop('engine_id', 1)
     phm_training_data = phm_training_data.drop('cycle', 1)
 
+    global test_engine_id
     test_engine_id = phm_testing_data['engine_id']
     phm_testing_data = phm_testing_data.drop('engine_id', 1)
     phm_testing_data = phm_testing_data.drop('cycle', 1)
@@ -253,6 +266,9 @@ def get_PHM08Data(save=False):
     train_test_split = np.random.rand(len(engine_ids)) < 0.80
     train_engine_ids = engine_ids[train_test_split]
     test_engine_ids = engine_ids[~train_test_split]
+
+    # test_engine_id = pd.Series(test_engine_ids)
+
 
     training_data = phm_training_data[train_engine_id[train_engine_id == train_engine_ids[0]].index]
     for id in train_engine_ids[1:]:
@@ -268,14 +284,17 @@ def get_PHM08Data(save=False):
 
     print(phm_training_data.shape, phm_testing_data.shape, training_data.shape, testing_data.shape)
 
-    np.save("phm_training_data.npy", training_data)
-    np.save("phm_testing_data.npy", testing_data)
-    np.save("phm_original_testing_data.npy", phm_testing_data)
+    np.save("./PHM08/processed_data/phm_training_data.npy", training_data)
+    np.savetxt("./PHM08/processed_data/phm_training_data.txt", training_data, delimiter=" ")
+    np.save("./PHM08/processed_data/phm_testing_data.npy", testing_data)
+    np.savetxt("./PHM08/processed_data/phm_testing_data.txt", testing_data, delimiter=" ")
+    np.save("./PHM08/processed_data/phm_original_testing_data.npy", phm_testing_data)
+    np.savetxt("./PHM08/processed_data/phm_original_testing_data.csv", phm_testing_data, delimiter=",")
 
     return training_data, testing_data, phm_testing_data
 
 
-def data_augmentation(files=1, low=[10, 40, 90, 170], high=[35, 85, 160, 250], plot=False):
+def data_augmentation(files=1, low=[10, 40, 90, 170], high=[35, 85, 160, 250], plot=False, combine=False):
     '''
     This helper function only augments the training data to look like testing data.
     Training data always run to a failure. But testing data is mostly stop before a failure.
@@ -295,23 +314,28 @@ def data_augmentation(files=1, low=[10, 40, 90, 170], high=[35, 85, 160, 250], p
                    's15', 's16', 's17', 's18', 's19', 's20', 's21']
 
     ### Loading original data ###
-    file_path = "./CMAPSSData/train_FD00" + str(files) + ".txt"
-    train_FD00x = pd.read_table(file_path, header=None, delim_whitespace=True)
-    train_FD00x.columns = column_name
-    print(file_path.split("/")[-1])
+    if files == "phm":
+        train_FD00x = pd.read_table("./PHM08/processed_data/phm_training_data.txt", header=None, delim_whitespace=True)
+        train_FD00x.drop(train_FD00x.columns[len(train_FD00x.columns) - 1], axis=1, inplace=True)
+        train_FD00x.columns = column_name
+    else:
+        if combine:
+            train_FD00x,_,_ = combine_FD001_and_FD003()
+        else:
+            file_path = "./CMAPSSData/train_FD00" + str(files) + ".txt"
+            train_FD00x = pd.read_table(file_path, header=None, delim_whitespace=True)
+            train_FD00x.columns = column_name
+            print(file_path.split("/")[-1])
 
-    previous_len = 0
-    frames = []
-
-    ### Standered Normal ###
-    mean = train_FD00x.iloc[:, 2:len(list(train_FD00x))].mean()
-    std = train_FD00x.iloc[:, 2:len(list(train_FD00x))].std()
-    std.replace(0, 1, inplace=True)
-
-    train_FD00x.iloc[:, 2:len(list(train_FD00x))] = (train_FD00x.iloc[:, 2:len(list(train_FD00x))] - mean) / std
+        ### Standered Normal ###
+        mean = train_FD00x.iloc[:, 2:len(list(train_FD00x))].mean()
+        std = train_FD00x.iloc[:, 2:len(list(train_FD00x))].std()
+        std.replace(0, 1, inplace=True)
+        train_FD00x.iloc[:, 2:len(list(train_FD00x))] = (train_FD00x.iloc[:, 2:len(list(train_FD00x))] - mean) / std
 
     final_train_FD = train_FD00x.copy()
-
+    previous_len = 0
+    frames = []
     for i in range(len(high)):
         train_FD = train_FD00x.copy()
         train_engine_id = train_FD['engine_id']
@@ -390,11 +414,21 @@ def data_augmentation(files=1, low=[10, 40, 90, 170], high=[35, 85, 160, 250], p
         previous_len = previous_len + current_len
         training_data = pd.concat([training_data, traj_data])
 
+
+    global training_engine_id
+    training_engine_id = training_data['engine_id']
+
     training_data = training_data.drop('engine_id', 1)
     training_data = training_data.drop('cycle', 1)
+    # if files == 1 or files == 3:
+    #     training_data = training_data.drop('setting3', 1)
+    #     training_data = training_data.drop('s18', 1)
+    #     training_data = training_data.drop('s19', 1)
 
     training_data_values = training_data.values * SCALE
     np.save('normalized_train_data.npy', training_data_values)
+    training_data.to_csv('normalized_train_data.csv')
+
 
     train = training_data_values
     x_train = train[:, :train.shape[1] - 1]
@@ -407,9 +441,9 @@ def data_augmentation(files=1, low=[10, 40, 90, 170], high=[35, 85, 160, 250], p
         plt.figure()
         plt.plot(x_train)
         plt.title("train")
-        plt.figure()
-        plt.plot(y_train)
-        plt.title("test")
+        # plt.figure()
+        # plt.plot(y_train)
+        # plt.title("test")
 
         plt.show()
 
@@ -464,6 +498,7 @@ def analyse_Data(dataset, files=None, plot=True, min_max=False):
 
         if plot:
             plt.plot(y_train, label="train")
+            plt.figure()
             plt.plot(y_test, label="test")
 
             plt.figure()
@@ -473,3 +508,38 @@ def analyse_Data(dataset, files=None, plot=True, min_max=False):
             plt.plot(y_train)
             plt.title("train: FD00" + str(files[0]))
             plt.show()
+
+
+def combine_FD001_and_FD003():
+    column_name = ['engine_id', 'cycle', 'setting1', 'setting2', 'setting3', 's1', 's2', 's3',
+                   's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 's12', 's13', 's14',
+                   's15', 's16', 's17', 's18', 's19', 's20', 's21']
+
+    train_FD001 = pd.read_table("./CMAPSSData/train_FD001.txt", header=None, delim_whitespace=True)
+    train_FD003 = pd.read_table("./CMAPSSData/train_FD003.txt", header=None, delim_whitespace=True)
+    train_FD001.columns = column_name
+    train_FD003.columns = column_name
+
+    FD001_max_engine_id = max(train_FD001['engine_id'])
+    train_FD003['engine_id'] = train_FD003['engine_id'] + FD001_max_engine_id
+    train_FD003.index = range(len(train_FD001), len(train_FD001) + len(train_FD003))
+    train_FD001_FD002 = pd.concat([train_FD001,train_FD003])
+
+    test_FD001 = pd.read_table("./CMAPSSData/test_FD001.txt", header=None, delim_whitespace=True)
+    test_FD003 = pd.read_table("./CMAPSSData/test_FD003.txt", header=None, delim_whitespace=True)
+    test_FD001.columns = column_name
+    test_FD003.columns = column_name
+
+    FD001_max_engine_id = max(test_FD001['engine_id'])
+    test_FD003['engine_id'] = test_FD003['engine_id'] + FD001_max_engine_id
+    test_FD003.index = range(len(test_FD001), len(test_FD001) + len(test_FD003))
+    test_FD001_FD002 = pd.concat([test_FD001,test_FD003])
+
+    RUL_FD001 = pd.read_table("./CMAPSSData/RUL_FD001.txt", header=None, delim_whitespace=True)
+    RUL_FD003 = pd.read_table("./CMAPSSData/RUL_FD003.txt", header=None, delim_whitespace=True)
+    RUL_FD001.columns = ['RUL']
+    RUL_FD003.columns = ['RUL']
+    RUL_FD003.index = range(len(RUL_FD001), len(RUL_FD001) + len(RUL_FD003))
+    RUL_FD001_FD002 = pd.concat([test_FD001, test_FD003])
+
+    return train_FD001_FD002,test_FD001_FD002,RUL_FD001_FD002

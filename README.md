@@ -3,6 +3,18 @@ Deep learning approach for estimation of Remaining Useful Life (RUL) of an engin
 This repo is dedicated to new architectures for estimating RUL using CMAPSS dataset and PHM08 prognostic challenge dataset
 The datasets are included in this repo or can be donwloaded from: https://ti.arc.nasa.gov/tech/dash/groups/pcoe/prognostic-data-repository/#turbofan 
 
+## System Model
+![Screenshot](screenshots/system_model.PNG)
+
+## Dependencies 
+
+tensorflow 1.8
+
+numpy 1.14.4
+
+pandas 0.20.3
+
+scikit-learn 0.19.1
 
 ## Dataset discription
 The main and largest dataset is the CMAPSS dataset. It contain four subdatasets called FD001, FD002, FD003, and FD004
@@ -50,14 +62,3 @@ Machine health is inversely proportional to the engine cycles. When number of en
 
 If we concatanate all the training labels and testing labels its looks like this (a) and (c)
 It’s clear that the training labels always goes to zero RUL but testing labels need not to go zero RUL. Therefore, model must see something like testing data to get a good perdition. We implemented a data augmentation technique to make the training data looks like testing data, which increases the accuracy. (more details will be publishing in our coming paper).
-## System Model
-![Screenshot](screenshots/system_model.PNG)
-## Dependencies 
-
-tensorflow 1.8
-
-numpy 1.14.4
-
-pandas 0.20.3
-
-scikit-learn 0.19.1

@@ -3,6 +3,8 @@ Deep learning approach for estimation of Remaining Useful Life (RUL) of an engin
 This repo is dedicated to new architectures for estimating RUL using CMAPSS dataset and PHM08 prognostic challenge dataset
 The datasets are included in this repo or can be donwloaded from: https://ti.arc.nasa.gov/tech/dash/groups/pcoe/prognostic-data-repository/#turbofan 
 
+For more details, please see our [Arxiv paper](https://arxiv.org/pdf/1810.05644.pdf).
+
 ## System Model
 ![Screenshot](screenshots/system_model.PNG)
 
@@ -62,3 +64,16 @@ Machine health is inversely proportional to the engine cycles. When number of en
 
 If we concatanate all the training labels and testing labels its looks like this (a) and (c)
 It’s clear that the training labels always goes to zero RUL but testing labels need not to go zero RUL. Therefore, model must see something like testing data to get a good perdition. We implemented a data augmentation technique to make the training data looks like testing data, which increases the accuracy. (more details will be publishing in our coming paper).
+
+### Citation
+
+If this is useful for your work, please cite our [Arxiv paper](https://arxiv.org/pdf/1810.05644.pdf):
+
+```bibtex
+@article{jayasinghe2018temporal,
+  title={Temporal Convolutional Memory Networks for Remaining Useful Life Estimation of Industrial Machinery},
+  author={Jayasinghe, Lahiru and Samarasinghe, Tharaka and Yuen, Chau and Ge, Shuzhi Sam},
+  journal={arXiv preprint arXiv:1810.05644},
+  year={2018}
+}
+```

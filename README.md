@@ -77,3 +77,8 @@ If this is useful for your work, please cite our [Arxiv paper](https://arxiv.org
   year={2018}
 }
 ```
+### License
+This is released under the MIT license. For more details, please refer
+[LICENSE](https://github.com/LahiruJayasinghe/RUL-Net/blob/master/LICENSE).
+
+"Copyright (c) 2018 Lahiru Jayasinghe"

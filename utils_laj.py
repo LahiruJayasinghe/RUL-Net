@@ -1,7 +1,10 @@
 import os
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.slim as slim
+#CHARLIE: w/tensorflow 2.0, contrib is no longer a part of tensorflow.
+#import tensorflow.contrib.slim as slim
+from tensorflow.contrib import slim
+#from tensorflow.python.compiler.tensorrt import trt_convert as trt
 from data_processing import MAXLIFE
 
 

@@ -1,3 +1,4 @@
+import logging
 from matplotlib import pyplot as plt
 import time
 import datetime
@@ -50,7 +51,7 @@ def CNNLSTM(dataset, file_no, Train=False, trj_wise=False, plot=False):
 
     sequence_length = 100  # Number of steps
     learning_rate = 0.001  # 0.0001
-    epochs = 5000
+    epochs = 10
     ann_hidden = 50
 
     n_channels = 24
@@ -256,7 +257,7 @@ def CNNLSTM(dataset, file_no, Train=False, trj_wise=False, plot=False):
                     plt.show()
 
 
-if __name__ == "__main__":
+def main():
 
     dataset = "cmapss" 
     file = 1 # represent the sub-dataset for cmapss
@@ -265,13 +266,16 @@ if __name__ == "__main__":
     PLOT = True
 
     analyse_Data(dataset=dataset, files=[file], plot=False, min_max=False)
-
+    logging.info('This is a test')
     if TRAIN: data_augmentation(files=file,
                                 low=[10, 35, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330],
                                 high=[35, 50, 70, 90, 110, 130, 150, 170, 190, 210, 230, 250, 270, 290, 310, 330, 350],
                                 plot=False,
                                 combine=False)
-
+    logging.info(2)
     from data_processing import RESCALE, test_engine_id
 
     CNNLSTM(dataset=dataset, file_no=file, Train=TRAIN, trj_wise=TRJ_WISE, plot=PLOT)
+
+if __name__ == "__main__":
+    main()

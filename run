@@ -1,0 +1,9 @@
+\${SPARK_HOME}/bin/spark-submit \
+--master ${MASTER} \
+--py-files model.py,utils_laj.py,data_processing.py \
+--conf spark.cores.max=${TOTAL_CORES} \
+--conf spark.task.cpus=${CORES_PER_WORKER} \
+/home/junliang/RUL-Net/main_fun.py \
+--cluster_size ${SPARK_WORKER_INSTANCES} \
+
+

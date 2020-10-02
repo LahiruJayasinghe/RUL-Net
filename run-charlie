@@ -1,0 +1,8 @@
+# spark.cores.max is set to at most use half of the cores on the 'cluster', which is just this machine.
+# in practice, it will never use that many as cluster_size and spark.task.cpus are both 1.
+${SPARK_HOME}/bin/spark-submit \
+--master spark://localhost:7077 \
+--py-files model.py,utils_laj.py,data_processing.py \
+/home/junliang/RUL-Net/main_fun.py \
+--cluster_size 2 \
+
